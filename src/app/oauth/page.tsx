@@ -1,5 +1,5 @@
+import { updateMercadoPagoCredentials } from "@/server/services/mercadopago-credentials";
 import { findPlanetaProjectByHostname } from "@/server/services/planeta-projects";
-import { trpc } from "@/server/trpc/server";
 import MercadoPagoConfig, { OAuth } from "mercadopago";
 import { isRedirectError } from "next/dist/client/components/redirect-error";
 import { redirect } from "next/navigation";
@@ -43,7 +43,7 @@ export default async function OAuthCallbackPage({
   try {
     const redirectUri = `${process.env.INSTANCE_URL}/oauth`;
     if (!redirectUri) {
-      throw new Error("MP_REDIRECT_URI is not configured");
+      throw new Error("INSTANCE_URL is not configured");
     }
 
     const client = new MercadoPagoConfig({
@@ -69,7 +69,7 @@ export default async function OAuthCallbackPage({
       throw new Error(`No project found for instance URL: ${instanceUrl}`);
     }
 
-    await trpc.vercel.updateMercadoPagoCredentials({
+    await updateMercadoPagoCredentials({
       projectId: project.id,
       accessToken: credentials.access_token,
       refreshToken: credentials.refresh_token,
