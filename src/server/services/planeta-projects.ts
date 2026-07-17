@@ -1,8 +1,8 @@
 import { GetProjectsResponseBody } from "@vercel/sdk/models/getprojectsop.js";
 import { cache } from "react";
 
-import { GITHUB_REPO_URL } from "@/server/config";
 import { mapWithConcurrency } from "@/lib/utils";
+import { GITHUB_REPO_URL } from "@/server/config";
 import {
   vercel,
   vercelApi,
@@ -57,18 +57,26 @@ const getProjectDomains = cache(async (projectId: string) => {
   return domains ?? [];
 });
 
+/** All verified domains (production + preview) for hostname lookup. */
+async function getAllProjectDomainNames(projectId: string) {
+  const { domains } = await vercelApi
+    .get<{ domains?: { name?: string }[] }>(
+      `v9/projects/${projectId}/domains`,
+      {
+        searchParams: { verified: "true" },
+      },
+    )
+    .json();
+
+  return (domains ?? [])
+    .map((domain) => domain.name?.toLowerCase())
+    .filter(Boolean) as string[];
+}
+
 async function getProjectProductionDomain(projectId: string) {
   const domains = await getProjectDomains(projectId);
 
   return domains[0]?.name ?? "";
-}
-
-async function getProjectDomainNames(projectId: string) {
-  const domains = await getProjectDomains(projectId);
-
-  return domains
-    .map((domain) => domain.name?.toLowerCase())
-    .filter(Boolean) as string[];
 }
 
 async function getPlanetaProjectItems() {
@@ -152,7 +160,7 @@ export async function findPlanetaProjectByHostname(hostname: string) {
       projectItems,
       VERCEL_DOMAIN_FETCH_CONCURRENCY,
       async (project) => {
-        const domainNames = await getProjectDomainNames(project.id);
+        const domainNames = await getAllProjectDomainNames(project.id);
         return domainNames.includes(targetHostname) ? project : null;
       },
     )
