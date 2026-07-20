@@ -56,7 +56,7 @@ export async function updateMercadoPagoCredentials({
         deploymentId: lastDeployment.deployments[0].uid,
         project: projectId,
         name: fullProject.name,
-        target: envTarget,
+        ...(envTarget === "preview" ? {} : { target: envTarget }),
       },
     });
   }
