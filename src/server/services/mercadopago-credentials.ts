@@ -1,4 +1,8 @@
-import { vercel, vercelApi } from "@/server/services/vercel-client";
+import {
+  vercel,
+  vercelApi,
+  vercelDomainTarget,
+} from "@/server/services/vercel-client";
 
 export async function updateMercadoPagoCredentials({
   projectId,
@@ -13,6 +17,8 @@ export async function updateMercadoPagoCredentials({
     .get<{ name: string }>(`v1/projects/${projectId}`)
     .json();
 
+  const envTarget = vercelDomainTarget;
+
   await vercel.projects.createProjectEnv({
     idOrName: projectId,
     teamId: process.env.VERCEL_TEAM_ID,
@@ -22,13 +28,13 @@ export async function updateMercadoPagoCredentials({
         key: "MP_ACCESS_TOKEN",
         value: accessToken,
         type: "encrypted",
-        target: ["production", "preview"],
+        target: [envTarget],
       },
       {
         key: "MP_REFRESH_TOKEN",
         value: refreshToken,
         type: "encrypted",
-        target: ["production", "preview"],
+        target: [envTarget],
       },
     ],
   });
@@ -37,7 +43,9 @@ export async function updateMercadoPagoCredentials({
     projectId,
     limit: 1,
     teamId: process.env.VERCEL_TEAM_ID,
-    branch: "master",
+    ...(envTarget === "production"
+      ? { branch: "master" }
+      : { target: "preview" }),
   });
 
   if (lastDeployment.deployments.length > 0) {
@@ -48,10 +56,10 @@ export async function updateMercadoPagoCredentials({
         deploymentId: lastDeployment.deployments[0].uid,
         project: projectId,
         name: fullProject.name,
-        target: "production",
+        target: envTarget,
       },
     });
   }
 
-  return { success: true as const };
+  return { success: true as const, target: envTarget };
 }
