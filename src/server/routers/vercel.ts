@@ -262,18 +262,6 @@ export const vercelRouter = router({
               type: "plain",
             },
             {
-              key: "MP_ACCESS_TOKEN",
-              target: ["production", "preview"],
-              value: input.envs.mpAccessToken,
-              type: "encrypted",
-            },
-            {
-              key: "MP_SECRET_KEY",
-              target: ["production", "preview"],
-              value: input.envs.mpSecretKey,
-              type: "encrypted",
-            },
-            {
               key: "DATABASE_URL",
               target: ["production", "preview"],
               value: input.envs.databaseUrl,
