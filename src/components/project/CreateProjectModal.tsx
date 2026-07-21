@@ -27,8 +27,6 @@ export default function CreateProjectModal() {
         instanceContactEmail: "",
         hue: 0,
         saturation: 100,
-        mpAccessToken: "",
-        mpSecretKey: "",
         databaseUrl: "",
         instanceWebUrl: "",
       },
@@ -150,30 +148,6 @@ export default function CreateProjectModal() {
                         label="Saturación (0-100)"
                         min={0}
                         max={100}
-                      />
-                    )}
-                  />
-                </div>
-              </FieldGroup>
-
-              {/* Configuración de Mercado Pago */}
-              <FieldGroup>
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                  <form.AppField
-                    name="envs.mpAccessToken"
-                    children={(field) => (
-                      <field.TextField
-                        label="Access Token de Mercado Pago"
-                        placeholder="APP_USR-0000000000000000-111111-222aaa3bb44ccc555ddddd6e7f888aa8-99999999"
-                      />
-                    )}
-                  />
-                  <form.AppField
-                    name="envs.mpSecretKey"
-                    children={(field) => (
-                      <field.TextField
-                        label="Secret Key de Mercado Pago"
-                        placeholder="a1bb222222cc33c3c444dd44d4d4dd4d55e55555555f666f666aa77bb8c9999"
                       />
                     )}
                   />

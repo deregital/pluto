@@ -44,8 +44,6 @@ export default function EditProjectModal({
       saturation: project.saturation,
       instanceDescription: project.instanceDescription,
       instanceContactEmail: project.instanceContactEmail,
-      mpAccessToken: "",
-      mpSecretKey: "",
       databaseUrl: "",
       instanceWebUrl: project.instanceWebUrl,
     },
@@ -64,8 +62,6 @@ export default function EditProjectModal({
         saturation: form.state.values.saturation,
         instanceDescription: form.state.values.instanceDescription,
         instanceContactEmail: form.state.values.instanceContactEmail,
-        mpAccessToken: form.state.values.mpAccessToken,
-        mpSecretKey: form.state.values.mpSecretKey,
         databaseUrl: form.state.values.databaseUrl,
         instanceWebUrl: form.state.values.instanceWebUrl,
       },
@@ -74,7 +70,7 @@ export default function EditProjectModal({
           setOpen(false);
           await updateTagAction("projects");
         },
-      }
+      },
     );
   };
 
@@ -159,24 +155,6 @@ export default function EditProjectModal({
                     min={0}
                     max={100}
                   />
-                )}
-              />
-            </div>
-          </FieldGroup>
-
-          {/* Configuración de Mercado Pago */}
-          <FieldGroup>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <form.AppField
-                name="mpAccessToken"
-                children={(field) => (
-                  <field.TextField label="Access Token de Mercado Pago" />
-                )}
-              />
-              <form.AppField
-                name="mpSecretKey"
-                children={(field) => (
-                  <field.TextField label="Secret Key de Mercado Pago" />
                 )}
               />
             </div>

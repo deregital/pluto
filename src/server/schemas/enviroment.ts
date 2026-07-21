@@ -27,8 +27,6 @@ export const projectEnvsSchema = z.object({
   instanceContactEmail: z.email({
     error: "El email de contacto no es válido",
   }),
-  mpAccessToken: z.string(),
-  mpSecretKey: z.string(),
   databaseUrl: z.string(),
   instanceWebUrl: z.string(),
 });
@@ -39,8 +37,6 @@ export const UPDATABLE_ENVS = [
   "NEXT_PUBLIC_SATURATION",
   "NEXT_PUBLIC_HUE",
   "INSTANCE_CONTACT_EMAIL",
-  "MP_ACCESS_TOKEN",
-  "MP_SECRET_KEY",
   "DATABASE_URL",
   "INSTANCE_WEB_URL",
 ] as const;
@@ -64,8 +60,6 @@ export const ENV_TO_INPUT_KEY: Record<
   NEXT_PUBLIC_HUE: "hue",
   NEXT_PUBLIC_SATURATION: "saturation",
   INSTANCE_CONTACT_EMAIL: "instanceContactEmail",
-  MP_ACCESS_TOKEN: "mpAccessToken",
-  MP_SECRET_KEY: "mpSecretKey",
   DATABASE_URL: "databaseUrl",
   INSTANCE_WEB_URL: "instanceWebUrl",
 };
