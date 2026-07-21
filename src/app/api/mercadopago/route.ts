@@ -78,9 +78,11 @@ export async function POST(req: NextRequest) {
     );
 
     if (!instanceResponse.ok) {
+      const responsePreview = (await instanceResponse.text()).slice(0, 500);
       console.error("[api/mercadopago] Instance notification failed", {
         instanceUrl: instanceUrl.origin,
         status: instanceResponse.status,
+        responsePreview,
       });
       return new NextResponse(null, { status: 502 });
     }
