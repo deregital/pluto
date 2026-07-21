@@ -19,6 +19,7 @@ import { addInstanceOriginToS3Cors } from "@/server/services/s3-cors";
 import { vercel, vercelApi } from "@/server/services/vercel-client";
 import { generateSodiumKey } from "@/server/sodium";
 import { Octokit } from "@octokit/rest";
+import { OneTarget } from "@vercel/sdk/models/createprojectenvop.js";
 import { revalidatePath } from "next/cache";
 import z from "zod";
 import { publicProcedure, router } from "../trpc";
@@ -325,6 +326,7 @@ export const vercelRouter = router({
               key: string;
               value: string;
               type: string;
+              target: string[];
             }>;
           }>("v1/env")
           .json();
@@ -360,7 +362,7 @@ export const vercelRouter = router({
                   key: sharedEnv.key,
                   value: sharedEnv.value,
                   type: sharedEnv.type === "encrypted" ? "encrypted" : "plain",
-                  target: ["production", "preview"],
+                  target: sharedEnv.target as OneTarget[],
                 },
               }),
             ),
