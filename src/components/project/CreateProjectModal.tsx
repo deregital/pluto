@@ -27,7 +27,6 @@ export default function CreateProjectModal() {
         instanceContactEmail: "",
         hue: 0,
         saturation: 100,
-        databaseUrl: "",
         instanceWebUrl: "",
       },
       name: "",
@@ -152,19 +151,6 @@ export default function CreateProjectModal() {
                     )}
                   />
                 </div>
-              </FieldGroup>
-
-              {/* Base de datos */}
-              <FieldGroup>
-                <form.AppField
-                  name="envs.databaseUrl"
-                  children={(field) => (
-                    <field.TextField
-                      label="URL de la base de datos"
-                      placeholder="postgres://ab123c4de5f...@db.prisma.io:5432"
-                    />
-                  )}
-                />
               </FieldGroup>
 
               {/* Seed */}
