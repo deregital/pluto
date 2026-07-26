@@ -14,15 +14,17 @@ import {
   createInstanceSchema,
   updateProjectSchema,
 } from "@/server/schemas/project";
+import { createDatabase } from "@/server/services/database-client";
 import { getPlanetaProjects } from "@/server/services/planeta-projects";
 import { addInstanceOriginToS3Cors } from "@/server/services/s3-cors";
 import { vercel, vercelApi } from "@/server/services/vercel-client";
 import { generateSodiumKey } from "@/server/sodium";
+import { publicProcedure, router } from "@/server/trpc";
 import { Octokit } from "@octokit/rest";
+import { TRPCError } from "@trpc/server";
 import { OneTarget } from "@vercel/sdk/models/createprojectenvop.js";
 import { revalidatePath } from "next/cache";
 import z from "zod";
-import { publicProcedure, router } from "../trpc";
 
 const octokit = new Octokit({
   auth: process.env.GITHUB_TOKEN,
@@ -156,7 +158,7 @@ export const vercelRouter = router({
           }
         }
       } catch (e) {
-        console.log(e);
+        console.error(e);
       }
 
       // Redeploy
@@ -183,7 +185,7 @@ export const vercelRouter = router({
           },
         });
       } catch (e) {
-        console.log(e);
+        console.error(e);
       }
 
       revalidatePath("/");
@@ -223,6 +225,18 @@ export const vercelRouter = router({
   createInstance: publicProcedure
     .input(createInstanceSchema)
     .mutation(async ({ input }) => {
+      // Create Database
+      let connectionString = "";
+      try {
+        connectionString = await createDatabase(input.name);
+      } catch (error) {
+        console.error("Error creating database", error);
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Error creating database",
+        });
+      }
+
       const newInstance = await vercel.projects.createProject({
         teamId: process.env.VERCEL_TEAM_ID,
         requestBody: {
@@ -265,7 +279,7 @@ export const vercelRouter = router({
             {
               key: "DATABASE_URL",
               target: ["production", "preview"],
-              value: input.envs.databaseUrl,
+              value: connectionString,
               type: "encrypted",
             },
             {
@@ -383,7 +397,7 @@ export const vercelRouter = router({
       // Create environment variables for github actions
       const parsedName = newInstance.name.replace(/-/g, "_").toUpperCase();
       const secretName = `PROD_DATABASE_URL_${parsedName}`;
-      const secretValue = input.envs.databaseUrl;
+      const secretValue = connectionString;
       const encryptedValue = await generateSodiumKey(
         secretValue,
         repoKey.data.key,
@@ -392,7 +406,7 @@ export const vercelRouter = router({
         throw new Error("Failed to encrypt secret");
       }
 
-      const res = await octokit.request(
+      await octokit.request(
         `PUT /repos/{owner}/{repo}/actions/secrets/{secret_name}`,
         {
           owner: GITHUB_REPO_OWNER,
@@ -403,7 +417,6 @@ export const vercelRouter = router({
         },
       );
 
-      console.log(res);
       // Create prisma migrate workflow dispatch event
       await octokit.request(
         "POST /repos/{owner}/{repo}/actions/workflows/{workflow_id}/dispatches",

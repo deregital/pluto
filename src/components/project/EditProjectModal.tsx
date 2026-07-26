@@ -44,7 +44,6 @@ export default function EditProjectModal({
       saturation: project.saturation,
       instanceDescription: project.instanceDescription,
       instanceContactEmail: project.instanceContactEmail,
-      databaseUrl: "",
       instanceWebUrl: project.instanceWebUrl,
     },
     validators: {
@@ -62,7 +61,6 @@ export default function EditProjectModal({
         saturation: form.state.values.saturation,
         instanceDescription: form.state.values.instanceDescription,
         instanceContactEmail: form.state.values.instanceContactEmail,
-        databaseUrl: form.state.values.databaseUrl,
         instanceWebUrl: form.state.values.instanceWebUrl,
       },
       {
@@ -158,16 +156,6 @@ export default function EditProjectModal({
                 )}
               />
             </div>
-          </FieldGroup>
-
-          {/* Base de datos */}
-          <FieldGroup>
-            <form.AppField
-              name="databaseUrl"
-              children={(field) => (
-                <field.TextField label="URL de la base de datos" />
-              )}
-            />
           </FieldGroup>
           <form.AppForm>
             <form.SubmitButton>Actualizar</form.SubmitButton>
