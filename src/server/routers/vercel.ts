@@ -296,6 +296,8 @@ export const vercelRouter = router({
             },
           ],
           framework: "nextjs",
+          commandForIgnoringBuildStep:
+            'if [ "$VERCEL_ENV" == "production" ]; then exit 1; else exit 0; fi',
         },
       });
 
