@@ -1,3 +1,4 @@
+import DeleteProjectModal from "@/components/project/DeleteProjectModal";
 import EditFaviconModal from "@/components/project/EditFaviconModal";
 import EditProjectModal from "@/components/project/EditProjectModal";
 import FaviconImage from "@/components/project/FaviconImage";
@@ -65,6 +66,7 @@ export default async function ProjectCard({
         />
       </div>
       <div className="absolute bottom-4 right-4">
+        <DeleteProjectModal projectName={project.name} />
         <RedeployModal projectId={project.id} />
       </div>
       <div className="relative flex items-center justify-center ml-4">
