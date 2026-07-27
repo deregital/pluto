@@ -1,4 +1,5 @@
 import {
+  DeleteBucketCorsCommand,
   GetBucketCorsCommand,
   PutBucketCorsCommand,
   type CORSRule,
@@ -63,6 +64,39 @@ function appendOriginToRules(rules: CORSRule[], origin: string): CORSRule[] {
   });
 }
 
+function removeOriginFromRules(rules: CORSRule[], origin: string): CORSRule[] {
+  return rules
+    .map((rule) => {
+      const origins = rule.AllowedOrigins ?? [];
+      if (!origins.includes(origin)) {
+        return rule;
+      }
+      return {
+        ...rule,
+        AllowedOrigins: origins.filter((allowed) => allowed !== origin),
+      };
+    })
+    .filter((rule) => (rule.AllowedOrigins?.length ?? 0) > 0);
+}
+
+async function getBucketCorsRules(
+  bucketName: string,
+): Promise<CORSRule[] | null> {
+  const s3Client = getS3Client();
+
+  try {
+    const response = await s3Client.send(
+      new GetBucketCorsCommand({ Bucket: bucketName }),
+    );
+    return response.CORSRules ?? [];
+  } catch (error) {
+    if (isNoSuchCorsConfiguration(error)) {
+      return null;
+    }
+    throw error;
+  }
+}
+
 export async function addInstanceOriginToS3Cors(
   instanceWebUrl: string,
 ): Promise<void> {
@@ -73,21 +107,41 @@ export async function addInstanceOriginToS3Cors(
 
   const s3Client = getS3Client();
   const bucketName = getS3BucketName();
+  const corsRules = (await getBucketCorsRules(bucketName)) ?? [];
+  const updatedRules = appendOriginToRules(corsRules, origin);
 
-  let corsRules: CORSRule[] = [];
+  await s3Client.send(
+    new PutBucketCorsCommand({
+      Bucket: bucketName,
+      CORSConfiguration: {
+        CORSRules: updatedRules,
+      },
+    }),
+  );
+}
 
-  try {
-    const response = await s3Client.send(
-      new GetBucketCorsCommand({ Bucket: bucketName }),
-    );
-    corsRules = response.CORSRules ?? [];
-  } catch (error) {
-    if (!isNoSuchCorsConfiguration(error)) {
-      throw error;
-    }
+export async function removeCORSFromS3Bucket(url: string): Promise<void> {
+  const origin = normalizeCorsOrigin(url);
+  if (!origin) {
+    return;
   }
 
-  const updatedRules = appendOriginToRules(corsRules, origin);
+  const s3Client = getS3Client();
+  const bucketName = getS3BucketName();
+  const corsRules = await getBucketCorsRules(bucketName);
+
+  if (!corsRules || corsRules.length === 0) {
+    return;
+  }
+
+  const updatedRules = removeOriginFromRules(corsRules, origin);
+
+  if (updatedRules.length === 0) {
+    await s3Client.send(
+      new DeleteBucketCorsCommand({ Bucket: bucketName }),
+    );
+    return;
+  }
 
   await s3Client.send(
     new PutBucketCorsCommand({

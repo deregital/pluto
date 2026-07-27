@@ -16,7 +16,10 @@ import {
 } from "@/server/schemas/project";
 import { createDatabase } from "@/server/services/database-client";
 import { getPlanetaProjects } from "@/server/services/planeta-projects";
-import { addInstanceOriginToS3Cors } from "@/server/services/s3-cors";
+import {
+  addInstanceOriginToS3Cors,
+  removeCORSFromS3Bucket,
+} from "@/server/services/s3-cors";
 import { vercel, vercelApi } from "@/server/services/vercel-client";
 import { generateSodiumKey } from "@/server/sodium";
 import { publicProcedure, router } from "@/server/trpc";
@@ -550,5 +553,77 @@ export const vercelRouter = router({
         ),
     );
     return availableDomains;
+  }),
+  deleteProject: publicProcedure
+    .input(z.string())
+    .mutation(async ({ input }) => {
+      try {
+        // Delete project from Vercel
+        const projectDomains = await vercel.projects.getProjectDomains({
+          idOrName: input,
+          teamId: process.env.VERCEL_TEAM_ID,
+          production: "true",
+          verified: "true",
+        });
+
+        if (!projectDomains) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Project not found",
+          });
+        }
+
+        await vercel.projects.deleteProject({
+          idOrName: input,
+          teamId: process.env.VERCEL_TEAM_ID,
+        });
+
+        // Remove from AWS S3 CORS
+        for (const domain of projectDomains.domains) {
+          await removeCORSFromS3Bucket(domain.name);
+        }
+
+        // Delete environment variable from GitHub Actions
+        const parsedName = input.replace(/-/g, "_").toUpperCase();
+        const secretName = `PROD_DATABASE_URL_${parsedName}`;
+        try {
+          await octokit.request(
+            `DELETE /repos/{owner}/{repo}/actions/secrets/{secret_name}`,
+            {
+              owner: GITHUB_REPO_OWNER,
+              repo: GITHUB_REPO_NAME,
+              secret_name: secretName,
+            },
+          );
+        } catch (error) {
+          const status =
+            error && typeof error === "object" && "status" in error
+              ? error.status
+              : undefined;
+          if (status === 404) {
+            console.warn(
+              `GitHub Actions secret "${secretName}" not found, skipping deletion.`,
+            );
+          }
+          throw error;
+        }
+      } catch (error) {
+        console.error("Error deleting project:", error);
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Error deleting project",
+        });
+      }
+    }),
+  test: publicProcedure.query(async () => {
+    const test = await vercel.projects.getProjectDomains({
+      idOrName: "pluto",
+      teamId: process.env.VERCEL_TEAM_ID,
+      production: "true",
+      verified: "true",
+    });
+
+    console.log(test);
+    return test;
   }),
 });
