@@ -586,14 +586,27 @@ export const vercelRouter = router({
         // Delete environment variable from GitHub Actions
         const parsedName = input.replace(/-/g, "_").toUpperCase();
         const secretName = `PROD_DATABASE_URL_${parsedName}`;
-        await octokit.request(
-          `DELETE /repos/{owner}/{repo}/actions/secrets/{secret_name}`,
-          {
-            owner: GITHUB_REPO_OWNER,
-            repo: GITHUB_REPO_NAME,
-            secret_name: secretName,
-          },
-        );
+        try {
+          await octokit.request(
+            `DELETE /repos/{owner}/{repo}/actions/secrets/{secret_name}`,
+            {
+              owner: GITHUB_REPO_OWNER,
+              repo: GITHUB_REPO_NAME,
+              secret_name: secretName,
+            },
+          );
+        } catch (error) {
+          const status =
+            error && typeof error === "object" && "status" in error
+              ? error.status
+              : undefined;
+          if (status === 404) {
+            console.warn(
+              `GitHub Actions secret "${secretName}" not found, skipping deletion.`,
+            );
+          }
+          throw error;
+        }
       } catch (error) {
         console.error("Error deleting project:", error);
         throw new TRPCError({
