@@ -127,30 +127,17 @@ export default function CreateProjectModal() {
                 />
               </FieldGroup>
 
-              {/* Configuración visual y contacto */}
+              {/* Configuración visual */}
               <FieldGroup>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <form.AppField
-                    name="envs.hue"
-                    children={(field) => (
-                      <field.NumberField
-                        label="HUE (0-360)"
-                        min={0}
-                        max={360}
-                      />
-                    )}
-                  />
-                  <form.AppField
-                    name="envs.saturation"
-                    children={(field) => (
-                      <field.NumberField
-                        label="Saturación (0-100)"
-                        min={0}
-                        max={100}
-                      />
-                    )}
-                  />
-                </div>
+                <form.AppField
+                  name="envs.hue"
+                  children={(field) => (
+                    <field.ColorPickerField
+                      label="Color de la instancia"
+                      saturationName="envs.saturation"
+                    />
+                  )}
+                />
               </FieldGroup>
 
               {/* Seed */}
