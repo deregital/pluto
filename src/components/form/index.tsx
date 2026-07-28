@@ -1,4 +1,5 @@
 import AvailableDomainsField from "@/components/form/AvailableDomainsField";
+import ColorPickerField from "@/components/form/ColorPickerField";
 import NumberField from "@/components/form/NumberField";
 import SubmitButton from "@/components/form/SubmitButton";
 import TextField from "@/components/form/TextField";
@@ -12,6 +13,7 @@ export const { useAppForm } = createFormHook({
     TextField,
     NumberField,
     AvailableDomainsField,
+    ColorPickerField,
   },
   formComponents: {
     SubmitButton,
