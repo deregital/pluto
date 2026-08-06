@@ -1,5 +1,6 @@
-import { createHmac, timingSafeEqual } from "node:crypto";
+import { getVercelOidcToken } from "@vercel/oidc";
 import { NextResponse } from "next/server";
+import { createHmac, timingSafeEqual } from "node:crypto";
 
 const DEFAULT_SIGNATURE_TOLERANCE_MS = 5 * 60 * 1000;
 
@@ -48,6 +49,57 @@ export function signPayload(
   return createHmac("sha256", signingSecret)
     .update(`${timestamp}.${rawBody}`)
     .digest("hex");
+}
+
+type SignedFetchOptions = Omit<RequestInit, "body"> & {
+  /** JSON serializable payload; se firma byte-a-byte el JSON resultante. */
+  body?: unknown;
+};
+
+/**
+ * Hace un fetch firmado con el esquema HMAC que usa Pluto para comunicarse con
+ * las instancias (ver `verifySignedRequest`). Se encarga de:
+ *  - serializar y firmar el body con `CREDENTIALS_SIGNING_SECRET`,
+ *  - setear los headers `x-timestamp` / `x-signature`,
+ *  - adjuntar los tokens de bypass/OIDC de Vercel para atravesar la
+ *    deployment protection de las instancias.
+ */
+export async function signedFetch(
+  url: string,
+  { body, headers: extraHeaders, ...init }: SignedFetchOptions = {},
+): Promise<Response> {
+  const rawBody = typeof body === "string" ? body : JSON.stringify(body ?? {});
+  const timestamp = Date.now().toString();
+  const signature = signPayload(timestamp, rawBody);
+
+  if (!signature) {
+    throw new Error("CREDENTIALS_SIGNING_SECRET is not configured");
+  }
+
+  const headers: Record<string, string> = {
+    "content-type": "application/json",
+    "x-timestamp": timestamp,
+    "x-signature": `sha256=${signature}`,
+    ...(extraHeaders as Record<string, string> | undefined),
+  };
+
+  const oidcToken = await getVercelOidcToken().catch(() => null);
+  if (oidcToken) {
+    headers["x-vercel-trusted-oidc-idp-token"] = oidcToken;
+  }
+
+  const bypassSecret = process.env.VERCEL_AUTOMATION_BYPASS_SECRET;
+  if (bypassSecret) {
+    headers["x-vercel-protection-bypass"] = bypassSecret;
+  }
+
+  return fetch(url, {
+    method: "POST",
+    cache: "no-store",
+    ...init,
+    headers,
+    body: rawBody,
+  });
 }
 
 type VerifySignedRequestOptions = {
@@ -110,7 +162,9 @@ export async function verifySignedRequest(
   }
 
   const rawBody = await request.text();
-  if (!isValidSignature(signingSecret, timestampHeader, rawBody, signatureHeader)) {
+  if (
+    !isValidSignature(signingSecret, timestampHeader, rawBody, signatureHeader)
+  ) {
     console.warn(`${logPrefix} Invalid HMAC signature`, {
       timestampHeader,
     });

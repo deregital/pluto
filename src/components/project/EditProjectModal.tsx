@@ -44,9 +44,6 @@ export default function EditProjectModal({
       saturation: project.saturation,
       instanceDescription: project.instanceDescription,
       instanceContactEmail: project.instanceContactEmail,
-      mpAccessToken: "",
-      mpSecretKey: "",
-      databaseUrl: "",
       instanceWebUrl: project.instanceWebUrl,
     },
     validators: {
@@ -64,9 +61,6 @@ export default function EditProjectModal({
         saturation: form.state.values.saturation,
         instanceDescription: form.state.values.instanceDescription,
         instanceContactEmail: form.state.values.instanceContactEmail,
-        mpAccessToken: form.state.values.mpAccessToken,
-        mpSecretKey: form.state.values.mpSecretKey,
-        databaseUrl: form.state.values.databaseUrl,
         instanceWebUrl: form.state.values.instanceWebUrl,
       },
       {
@@ -74,7 +68,7 @@ export default function EditProjectModal({
           setOpen(false);
           await updateTagAction("projects");
         },
-      }
+      },
     );
   };
 
@@ -144,50 +138,13 @@ export default function EditProjectModal({
 
           {/* Configuración visual */}
           <FieldGroup>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <form.AppField
-                name="hue"
-                children={(field) => (
-                  <field.NumberField label="HUE (0-360)" min={0} max={360} />
-                )}
-              />
-              <form.AppField
-                name="saturation"
-                children={(field) => (
-                  <field.NumberField
-                    label="Saturación (0-100)"
-                    min={0}
-                    max={100}
-                  />
-                )}
-              />
-            </div>
-          </FieldGroup>
-
-          {/* Configuración de Mercado Pago */}
-          <FieldGroup>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <form.AppField
-                name="mpAccessToken"
-                children={(field) => (
-                  <field.TextField label="Access Token de Mercado Pago" />
-                )}
-              />
-              <form.AppField
-                name="mpSecretKey"
-                children={(field) => (
-                  <field.TextField label="Secret Key de Mercado Pago" />
-                )}
-              />
-            </div>
-          </FieldGroup>
-
-          {/* Base de datos */}
-          <FieldGroup>
             <form.AppField
-              name="databaseUrl"
+              name="hue"
               children={(field) => (
-                <field.TextField label="URL de la base de datos" />
+                <field.ColorPickerField
+                  label="Color de la instancia"
+                  saturationName="saturation"
+                />
               )}
             />
           </FieldGroup>

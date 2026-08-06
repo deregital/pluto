@@ -1,8 +1,7 @@
 import { z } from "zod";
 
-import { signPayload } from "@/server/security/signed-request";
+import { signedFetch } from "@/server/security/signed-request";
 import { getPlanetaProjects } from "@/server/services/planeta-projects";
-import { getVercelOidcToken } from "@vercel/oidc";
 const DEFAULT_FETCH_TIMEOUT_MS = 120_000;
 
 function getFetchTimeoutMs() {
@@ -103,52 +102,26 @@ async function fetchInstanceCalendarEvents({
   from: Date;
   to: Date;
 }) {
-  const rawBody = JSON.stringify({
-    from: from.toISOString(),
-    to: to.toISOString(),
-  });
-  const timestamp = Date.now().toString();
-  const signature = signPayload(timestamp, rawBody);
-
-  if (!signature) {
-    throw new Error("CREDENTIALS_SIGNING_SECRET is not configured");
-  }
-
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), getFetchTimeoutMs());
 
   try {
-    const headers: Record<string, string> = {
-      "content-type": "application/json",
-      "x-timestamp": timestamp,
-      "x-signature": `sha256=${signature}`,
-    };
-
-    const oidcToken = await getVercelOidcToken();
-    if (oidcToken) {
-      headers["x-vercel-trusted-oidc-idp-token"] = oidcToken;
-    }
-
-    const protectionBypassSecret = process.env.VERCEL_AUTOMATION_BYPASS_SECRET;
-    if (protectionBypassSecret) {
-      headers["x-vercel-protection-bypass"] = protectionBypassSecret;
-    }
-
-    const response = await fetch(`${instanceUrl}/api/pluto/calendar-events`, {
-      method: "POST",
-      cache: "no-store",
-      signal: controller.signal,
-      headers,
-      body: rawBody,
-    });
+    const response = await signedFetch(
+      `${instanceUrl}/api/pluto/calendar-events`,
+      {
+        signal: controller.signal,
+        body: {
+          from: from.toISOString(),
+          to: to.toISOString(),
+        },
+      },
+    );
 
     if (!response.ok) {
       const responsePreview = (await response.text()).slice(0, 120);
       console.error("[pluto-calendar] Instance fetch failed", {
         instanceUrl,
         status: response.status,
-        hasOidcToken: Boolean(oidcToken),
-        hasBypassSecret: Boolean(protectionBypassSecret),
         responsePreview,
       });
       throw new Error(`HTTP ${response.status}`);

@@ -14,14 +14,20 @@ import {
   createInstanceSchema,
   updateProjectSchema,
 } from "@/server/schemas/project";
+import { createDatabase } from "@/server/services/database-client";
 import { getPlanetaProjects } from "@/server/services/planeta-projects";
-import { addInstanceOriginToS3Cors } from "@/server/services/s3-cors";
+import {
+  addInstanceOriginToS3Cors,
+  removeCORSFromS3Bucket,
+} from "@/server/services/s3-cors";
 import { vercel, vercelApi } from "@/server/services/vercel-client";
 import { generateSodiumKey } from "@/server/sodium";
+import { publicProcedure, router } from "@/server/trpc";
 import { Octokit } from "@octokit/rest";
+import { TRPCError } from "@trpc/server";
+import { OneTarget } from "@vercel/sdk/models/createprojectenvop.js";
 import { revalidatePath } from "next/cache";
 import z from "zod";
-import { publicProcedure, router } from "../trpc";
 
 const octokit = new Octokit({
   auth: process.env.GITHUB_TOKEN,
@@ -155,7 +161,7 @@ export const vercelRouter = router({
           }
         }
       } catch (e) {
-        console.log(e);
+        console.error(e);
       }
 
       // Redeploy
@@ -182,7 +188,7 @@ export const vercelRouter = router({
           },
         });
       } catch (e) {
-        console.log(e);
+        console.error(e);
       }
 
       revalidatePath("/");
@@ -222,6 +228,18 @@ export const vercelRouter = router({
   createInstance: publicProcedure
     .input(createInstanceSchema)
     .mutation(async ({ input }) => {
+      // Create Database
+      let connectionString = "";
+      try {
+        connectionString = await createDatabase(input.name);
+      } catch (error) {
+        console.error("Error creating database", error);
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Error creating database",
+        });
+      }
+
       const newInstance = await vercel.projects.createProject({
         teamId: process.env.VERCEL_TEAM_ID,
         requestBody: {
@@ -262,21 +280,9 @@ export const vercelRouter = router({
               type: "plain",
             },
             {
-              key: "MP_ACCESS_TOKEN",
-              target: ["production", "preview"],
-              value: input.envs.mpAccessToken,
-              type: "encrypted",
-            },
-            {
-              key: "MP_SECRET_KEY",
-              target: ["production", "preview"],
-              value: input.envs.mpSecretKey,
-              type: "encrypted",
-            },
-            {
               key: "DATABASE_URL",
               target: ["production", "preview"],
-              value: input.envs.databaseUrl,
+              value: connectionString,
               type: "encrypted",
             },
             {
@@ -293,6 +299,8 @@ export const vercelRouter = router({
             },
           ],
           framework: "nextjs",
+          commandForIgnoringBuildStep:
+            'if [ "$VERCEL_ENV" == "production" ]; then exit 1; else exit 0; fi',
         },
       });
 
@@ -337,6 +345,7 @@ export const vercelRouter = router({
               key: string;
               value: string;
               type: string;
+              target: string[];
             }>;
           }>("v1/env")
           .json();
@@ -372,7 +381,7 @@ export const vercelRouter = router({
                   key: sharedEnv.key,
                   value: sharedEnv.value,
                   type: sharedEnv.type === "encrypted" ? "encrypted" : "plain",
-                  target: ["production", "preview"],
+                  target: sharedEnv.target as OneTarget[],
                 },
               }),
             ),
@@ -393,7 +402,7 @@ export const vercelRouter = router({
       // Create environment variables for github actions
       const parsedName = newInstance.name.replace(/-/g, "_").toUpperCase();
       const secretName = `PROD_DATABASE_URL_${parsedName}`;
-      const secretValue = input.envs.databaseUrl;
+      const secretValue = connectionString;
       const encryptedValue = await generateSodiumKey(
         secretValue,
         repoKey.data.key,
@@ -402,7 +411,7 @@ export const vercelRouter = router({
         throw new Error("Failed to encrypt secret");
       }
 
-      const res = await octokit.request(
+      await octokit.request(
         `PUT /repos/{owner}/{repo}/actions/secrets/{secret_name}`,
         {
           owner: GITHUB_REPO_OWNER,
@@ -413,7 +422,6 @@ export const vercelRouter = router({
         },
       );
 
-      console.log(res);
       // Create prisma migrate workflow dispatch event
       await octokit.request(
         "POST /repos/{owner}/{repo}/actions/workflows/{workflow_id}/dispatches",
@@ -545,5 +553,77 @@ export const vercelRouter = router({
         ),
     );
     return availableDomains;
+  }),
+  deleteProject: publicProcedure
+    .input(z.string())
+    .mutation(async ({ input }) => {
+      try {
+        // Delete project from Vercel
+        const projectDomains = await vercel.projects.getProjectDomains({
+          idOrName: input,
+          teamId: process.env.VERCEL_TEAM_ID,
+          production: "true",
+          verified: "true",
+        });
+
+        if (!projectDomains) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Project not found",
+          });
+        }
+
+        await vercel.projects.deleteProject({
+          idOrName: input,
+          teamId: process.env.VERCEL_TEAM_ID,
+        });
+
+        // Remove from AWS S3 CORS
+        for (const domain of projectDomains.domains) {
+          await removeCORSFromS3Bucket(domain.name);
+        }
+
+        // Delete environment variable from GitHub Actions
+        const parsedName = input.replace(/-/g, "_").toUpperCase();
+        const secretName = `PROD_DATABASE_URL_${parsedName}`;
+        try {
+          await octokit.request(
+            `DELETE /repos/{owner}/{repo}/actions/secrets/{secret_name}`,
+            {
+              owner: GITHUB_REPO_OWNER,
+              repo: GITHUB_REPO_NAME,
+              secret_name: secretName,
+            },
+          );
+        } catch (error) {
+          const status =
+            error && typeof error === "object" && "status" in error
+              ? error.status
+              : undefined;
+          if (status === 404) {
+            console.warn(
+              `GitHub Actions secret "${secretName}" not found, skipping deletion.`,
+            );
+          }
+          throw error;
+        }
+      } catch (error) {
+        console.error("Error deleting project:", error);
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Error deleting project",
+        });
+      }
+    }),
+  test: publicProcedure.query(async () => {
+    const test = await vercel.projects.getProjectDomains({
+      idOrName: "pluto",
+      teamId: process.env.VERCEL_TEAM_ID,
+      production: "true",
+      verified: "true",
+    });
+
+    console.log(test);
+    return test;
   }),
 });
