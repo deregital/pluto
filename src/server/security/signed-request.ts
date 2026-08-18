@@ -39,6 +39,30 @@ function isValidSignature(
   return timingSafeEqual(expectedBuffer, receivedBuffer);
 }
 
+export function verifySignedPayload({
+  timestamp,
+  rawBody,
+  signature,
+  signingSecret = process.env.CREDENTIALS_SIGNING_SECRET?.trim(),
+}: {
+  timestamp: string;
+  rawBody: string;
+  signature: string;
+  signingSecret?: string;
+}) {
+  if (!signingSecret) return false;
+
+  const normalizedTimestamp = normalizeTimestamp(timestamp);
+  if (
+    !normalizedTimestamp ||
+    Math.abs(Date.now() - normalizedTimestamp) > DEFAULT_SIGNATURE_TOLERANCE_MS
+  ) {
+    return false;
+  }
+
+  return isValidSignature(signingSecret, timestamp, rawBody, signature);
+}
+
 export function signPayload(
   timestamp: string,
   rawBody: string,
