@@ -22,6 +22,16 @@ export function normalizeHostname(value: string): string {
   }
 }
 
+function matchesProjectDomain(hostname: string, domain: string) {
+  const normalizedDomain = domain.toLowerCase();
+  if (!normalizedDomain.startsWith("*.")) {
+    return hostname === normalizedDomain;
+  }
+
+  const suffix = normalizedDomain.slice(1);
+  return hostname.endsWith(suffix) && hostname.length > suffix.length;
+}
+
 type VercelProject = {
   id: string;
   name: string;
@@ -161,7 +171,11 @@ export async function findPlanetaProjectByHostname(hostname: string) {
       VERCEL_DOMAIN_FETCH_CONCURRENCY,
       async (project) => {
         const domainNames = await getAllProjectDomainNames(project.id);
-        return domainNames.includes(targetHostname) ? project : null;
+        return domainNames.some((domain) =>
+          matchesProjectDomain(targetHostname, domain),
+        )
+          ? project
+          : null;
       },
     )
   ).find((project) => project !== null);
