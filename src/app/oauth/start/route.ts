@@ -4,6 +4,8 @@ import {
   getPkceCookieMaxAgeSeconds,
   getPkceVerifierCookieName,
 } from "@/server/security/pkce";
+import { createOAuthState } from "@/server/security/oauth-state";
+import { verifySignedPayload } from "@/server/security/signed-request";
 import { findPlanetaProjectByHostname } from "@/server/services/planeta-projects";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -21,16 +23,27 @@ function getRedirectUri() {
 
 /**
  * Starts Mercado Pago OAuth with PKCE.
- * Instance button should point here:
- *   GET /oauth/start?instance_url=https://dev.nocturno.app
+ * Planeta Nocturno signs the instance URL before linking to this endpoint.
  */
 export async function GET(request: NextRequest) {
   const instanceUrlParam = request.nextUrl.searchParams.get("instance_url");
-  if (!instanceUrlParam) {
+  const timestamp = request.nextUrl.searchParams.get("timestamp");
+  const signature = request.nextUrl.searchParams.get("signature");
+  if (!instanceUrlParam || !timestamp || !signature) {
     return new NextResponse(
-      "Falta el query param instance_url. Ejemplo: /oauth/start?instance_url=https://dev.nocturno.app",
+      "Faltan parámetros para iniciar la conexión con Mercado Pago.",
       { status: 400 },
     );
+  }
+
+  if (
+    !verifySignedPayload({
+      timestamp,
+      rawBody: instanceUrlParam,
+      signature,
+    })
+  ) {
+    return new NextResponse("Solicitud no autorizada.", { status: 401 });
   }
 
   const instanceUrl = normalizeInstanceUrl(instanceUrlParam);
@@ -60,7 +73,7 @@ export async function GET(request: NextRequest) {
   authUrl.searchParams.set("response_type", "code");
   authUrl.searchParams.set("platform_id", "mp");
   authUrl.searchParams.set("redirect_uri", redirectUri);
-  authUrl.searchParams.set("state", instanceUrl);
+  authUrl.searchParams.set("state", createOAuthState(instanceUrl));
   authUrl.searchParams.set("code_challenge", codeChallenge);
   authUrl.searchParams.set("code_challenge_method", "S256");
 
