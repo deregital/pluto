@@ -10,10 +10,12 @@ export async function storeMercadoPagoCredentials({
   instanceUrl,
   accessToken,
   refreshToken,
+  accessTokenExpiresAt,
 }: {
   instanceUrl: string;
   accessToken: string;
   refreshToken: string;
+  accessTokenExpiresAt: string;
 }) {
   const { project } = await findPlanetaProjectByHostname(instanceUrl);
   if (!project) {
@@ -25,7 +27,7 @@ export async function storeMercadoPagoCredentials({
     instanceUrl,
   );
   const response = await signedFetch(credentialsUrl.toString(), {
-    body: { accessToken, refreshToken },
+    body: { accessToken, refreshToken, accessTokenExpiresAt },
   });
 
   if (response.ok) {
@@ -61,6 +63,12 @@ export async function storeMercadoPagoCredentials({
       {
         key: "MP_REFRESH_TOKEN",
         value: refreshToken,
+        type: "encrypted",
+        target: [envTarget],
+      },
+      {
+        key: "MP_ACCESS_TOKEN_EXPIRES_AT",
+        value: accessTokenExpiresAt,
         type: "encrypted",
         target: [envTarget],
       },

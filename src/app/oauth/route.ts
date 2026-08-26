@@ -73,14 +73,25 @@ export async function GET(request: NextRequest) {
       codeVerifier,
     });
 
-    if (!credentials.access_token || !credentials.refresh_token) {
-      throw new Error("Mercado Pago did not return access or refresh token");
+    if (
+      !credentials.access_token ||
+      !credentials.refresh_token ||
+      !credentials.expires_in
+    ) {
+      throw new Error(
+        "Mercado Pago did not return access token, refresh token or expiration",
+      );
     }
+
+    const accessTokenExpiresAt = new Date(
+      Date.now() + credentials.expires_in * 1000,
+    ).toISOString();
 
     await storeMercadoPagoCredentials({
       instanceUrl,
       accessToken: credentials.access_token,
       refreshToken: credentials.refresh_token,
+      accessTokenExpiresAt,
     });
 
     const successResponse = redirectToInstanceSettings(instanceUrl, "success");
