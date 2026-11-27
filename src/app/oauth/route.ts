@@ -51,7 +51,9 @@ export async function GET(request: NextRequest) {
   try {
     instanceUrl = normalizeInstanceUrl(readOAuthState(state).instanceUrl);
   } catch {
-    return new NextResponse("Estado OAuth inválido o vencido.", { status: 400 });
+    return new NextResponse("Estado OAuth inválido o vencido.", {
+      status: 400,
+    });
   }
   const codeVerifier = request.cookies.get(getPkceVerifierCookieName())?.value;
 
@@ -76,11 +78,17 @@ export async function GET(request: NextRequest) {
     if (!credentials.access_token || !credentials.refresh_token) {
       throw new Error("Mercado Pago did not return access or refresh token");
     }
+    if (!credentials.expires_in) {
+      throw new Error("Mercado Pago did not return the token expiration");
+    }
 
     await storeMercadoPagoCredentials({
       instanceUrl,
       accessToken: credentials.access_token,
       refreshToken: credentials.refresh_token,
+      accessTokenExpiresAt: new Date(
+        Date.now() + credentials.expires_in * 1000,
+      ).toISOString(),
     });
 
     const successResponse = redirectToInstanceSettings(instanceUrl, "success");
