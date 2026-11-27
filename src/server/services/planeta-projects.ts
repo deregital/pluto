@@ -83,6 +83,14 @@ async function getAllProjectDomainNames(projectId: string) {
     .filter(Boolean) as string[];
 }
 
+/** Los dominios de producción verificados de un proyecto, en el orden de Vercel. */
+export async function getProjectProductionDomainNames(projectId: string) {
+  const domains = await getProjectDomains(projectId);
+  return domains
+    .map((domain) => domain.name?.toLowerCase())
+    .filter(Boolean) as string[];
+}
+
 async function getProjectProductionDomain(projectId: string) {
   const domains = await getProjectDomains(projectId);
 

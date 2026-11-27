@@ -1,0 +1,13 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1795786768194,
+      "tag": "0000_guardia_agenda",
+      "breakpoints": true
+    }
+  ]
+}

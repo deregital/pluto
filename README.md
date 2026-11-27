@@ -20,6 +20,10 @@ redeploys.
 - ✏️ **Instance management** — update environment variables and redeploy.
 - 🖼️ **Favicon management** — upload/replace per-instance favicons stored in S3.
 - 🗓️ **Calendar dashboard** — operational view of the managed instances.
+- 🌙 **Noches de hoy** (`/tonight`) — live board of every night across all
+  instances and tenants. A schedule reads each instance's agenda every 5
+  minutes into Pluto's own database; the board asks each instance for its
+  night metrics (totals only, no personal data) on every refresh.
 - 🔁 **Credentials webhook** — an HMAC-signed `POST /api/credentials` endpoint to
   configure a project's Mercado Pago credentials by hostname and redeploy.
 
@@ -70,7 +74,10 @@ documents what each variable is for. At a glance:
 | `AWS_REGION` / `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` | AWS S3 credentials. |
 | `GITHUB_TOKEN` | Token to manage the managed repo's secrets/workflows. |
 | `GITHUB_REPO_OWNER` / `GITHUB_REPO_NAME` / `GITHUB_REPO_ID` | The repository Pluto deploys instances from. |
-| `CREDENTIALS_SIGNING_SECRET` | HMAC secret for the `/api/credentials` webhook. |
+| `CREDENTIALS_SIGNING_SECRET` | HMAC secret for the `/api/credentials` webhook and the signed requests to the instances. |
+| `PLUTO_ALLOWED_EMAILS` | Who can sign in: emails or `@domains`, comma separated. Empty means nobody. |
+| `PLUTO_DATABASE_URL` | Pluto's own Postgres for the guardia (agenda and sync runs). |
+| `CRON_SECRET` | Secret Vercel sends to the `guardia-agenda` schedule. |
 
 ## Available scripts
 
@@ -80,6 +87,8 @@ documents what each variable is for. At a glance:
 | `pnpm build` | Production build. |
 | `pnpm start` | Run the production build. |
 | `pnpm lint` | Run ESLint. |
+| `pnpm db:generate` | Generate a migration from `src/server/db/schema.ts` into `./drizzle`. |
+| `pnpm db:migrate` | Apply the migrations to `PLUTO_DATABASE_URL`. |
 
 ## Project structure
 
@@ -105,9 +114,18 @@ Pluto is a standard Next.js app and deploys to Vercel (or any Node host) out of
 the box. Configure all variables from [`.env.example`](.env.example) in your
 hosting provider's environment settings before deploying.
 
+Before deploying a change to `src/server/db/schema.ts`, apply its migration with
+`pnpm db:migrate` (with `PLUTO_DATABASE_URL` pointing at the production
+database). The `guardia-agenda` schedule in [`vercel.json`](vercel.json) runs
+only in production.
+
 ## Security
 
 - Never commit `.env`. Only `.env.example` (with empty values) is tracked.
 - Use least-privilege credentials: scope the AWS IAM user to the favicon bucket
   and prefer a fine-grained GitHub token limited to the managed repository.
 - Set a strong, random `CREDENTIALS_SIGNING_SECRET`.
+- Keep `PLUTO_ALLOWED_EMAILS` short: anyone on it can create and delete
+  instances. Removing someone ends their session on their next request.
+- The guardia database must never hold buyers' personal data or per-tenant
+  notes in the repository: instances only return totals.

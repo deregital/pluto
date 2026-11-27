@@ -1,0 +1,10 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "schedules": {
+    "guardia-agenda": {
+      "schedule": "*/5 * * * *",
+      "path": "/api/guardia/agenda",
+      "requestMethod": "GET"
+    }
+  }
+}

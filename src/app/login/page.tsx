@@ -5,11 +5,16 @@ import { auth, signIn } from "@/server/auth";
 import { Eclipse } from "lucide-react";
 import { redirect } from "next/navigation";
 
-export default async function LoginPage() {
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
   const session = await auth();
   if (session) {
     redirect("/");
   }
+  const { error } = await searchParams;
 
   return (
     <div className="min-h-screen bg-linear-to-br from-slate-50 to-slate-100 flex items-center justify-center p-6">
@@ -22,7 +27,17 @@ export default async function LoginPage() {
             Iniciar sesión
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
+          {error && (
+            <p
+              role="alert"
+              className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-800 ring-1 ring-red-200"
+            >
+              {error === "AccessDenied"
+                ? "Esa cuenta no tiene acceso a Pluto."
+                : "No pudimos iniciar sesión. Probá de nuevo."}
+            </p>
+          )}
           <form
             action={async () => {
               "use server";

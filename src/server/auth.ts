@@ -1,10 +1,20 @@
 import NextAuth, { CredentialsSignin } from "next-auth";
 import Google from "next-auth/providers/google";
 
+import { isAllowedEmail } from "@/server/security/allowed-users";
+
 const { handlers, signIn, signOut, auth } = NextAuth({
   secret: process.env.AUTH_SECRET,
   providers: [Google],
   callbacks: {
+    // Google confirma el mail; además tiene que estar en la lista.
+    async signIn({ profile }) {
+      if (!profile?.email_verified || !isAllowedEmail(profile.email)) {
+        console.warn("[auth] Sign-in rejected for an account outside the list");
+        return false;
+      }
+      return true;
+    },
     async session({ session, token, user }) {
       if (user) {
         session.user = {
@@ -29,6 +39,8 @@ const { handlers, signIn, signOut, auth } = NextAuth({
         token.name = user.name;
         token.email = user.email;
       }
+      // Si alguien sale de la lista, su sesión se corta en el próximo pedido.
+      if (!isAllowedEmail(token.email)) return null;
       return token;
     },
   },
