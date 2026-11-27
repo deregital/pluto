@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { auth } from "@/server/auth";
 import { trpc } from "@/server/trpc/server";
-import { CalendarDays } from "lucide-react";
+import { CalendarDays, Moon } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
@@ -21,6 +21,12 @@ export default async function Home() {
     <div className="flex flex-col gap-4 justify-center items-center container mx-auto mt-20 px-4 mb-4">
       <Card className="relative w-full lg:w-3/5">
         <div className="absolute top-4 right-4 flex items-center gap-2">
+          <Button asChild variant="outline">
+            <Link href="/tonight">
+              <Moon />
+              Noches de hoy
+            </Link>
+          </Button>
           <Button asChild variant="outline">
             <Link href="/calendar">
               <CalendarDays />
